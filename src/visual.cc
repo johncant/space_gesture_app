@@ -183,27 +183,33 @@ void build_spheres_mesh(float* p, float c) {
     for(int a1=0;a1<a0;a1++) {
       for(int s0=0;s0<2;s0++) {
         for(int s1=0;s1<2;s1++) {
-//          hexagons.push_back(vertex_sq[a1*8+s1*4+s0*2+0*1]);
-//          hexagons.push_back(vertex_sq[a1*8+s1*4+s0*2+1*1]);
-//          hexagons.push_back(vertex_sq[a0*8+s0*4+s1*2+1*1]);
 
           int a2;
           if (a0 == 1 && a1 == 0) a2 = 2;
           if (a0 == 2 && a1 == 0) a2 = 1;
           if (a0 == 2 && a1 == 1) a2 = 0;
-          int coords[3];
-          coords[a0] = s0;
-          coords[a1] = s1;
-          coords[a2] = 1;
-          hexagons.push_back(vertex_pyr[4*coords[0]+2*coords[1]+1*coords[2]]);
-          hexagons.push_back(vertex_sq[a1*8+coords[0]*4+coords[1]*2+coords[2]*1]);
-          hexagons.push_back(vertex_sq[a0*8+coords[0]*4+coords[1]*2+coords[2]*1]);
-          coords[a0] = 1-s0;
-          coords[a1] = 1-s1;
-          coords[a2] = 0;
-          hexagons.push_back(vertex_pyr[4*coords[0]+2*coords[1]+1*coords[2]]);
-          hexagons.push_back(vertex_sq[a1*8+coords[0]*4+coords[1]*2+coords[2]*1]);
-          hexagons.push_back(vertex_sq[a0*8+coords[0]*4+coords[1]*2+coords[2]*1]);
+          int coords0[3], coords1[3];
+          coords0[a0] = s0;
+          coords0[a1] = s1;
+          coords0[a2] = 1;
+          hexagons.push_back(vertex_pyr[4*coords0[0]+2*coords0[1]+1*coords0[2]]);
+          hexagons.push_back(vertex_sq[a1*8+coords0[0]*4+coords0[1]*2+coords0[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords0[0]*4+coords0[1]*2+coords0[2]*1]);
+          coords1[a0] = s0;
+          coords1[a1] = s1;
+          coords1[a2] = 0;
+          hexagons.push_back(vertex_pyr[4*coords1[0]+2*coords1[1]+1*coords1[2]]);
+          hexagons.push_back(vertex_sq[a1*8+coords1[0]*4+coords1[1]*2+coords1[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords1[0]*4+coords1[1]*2+coords1[2]*1]);
+
+          hexagons.push_back(vertex_sq[a1*8+coords0[0]*4+coords0[1]*2+coords0[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords0[0]*4+coords0[1]*2+coords0[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords1[0]*4+coords1[1]*2+coords1[2]*1]);
+
+          hexagons.push_back(vertex_sq[a1*8+coords1[0]*4+coords1[1]*2+coords1[2]*1]);
+          hexagons.push_back(vertex_sq[a1*8+coords0[0]*4+coords0[1]*2+coords0[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords1[0]*4+coords1[1]*2+coords1[2]*1]);
+
         }
       }
     }
@@ -234,7 +240,7 @@ void Visual::initialize() {
 
   float c = 0.5, s = 0.1;
 
-  static GLfloat test_data[6*2*3+12*2*3+8*3*3];
+  static GLfloat test_data[6*2*3*3+12*4*3*3];
 
   build_spheres_mesh(test_data, c);
 //    = {
@@ -286,7 +292,7 @@ void Visual::initialize() {
 
   glGenBuffers(1, &pimpl->vbo);
   glBindBuffer(GL_ARRAY_BUFFER, pimpl->vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float)*(3*6*6+12*6*3), test_data, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float)*(6*2*3*3+12*4*3*3), test_data, GL_STATIC_DRAW);
 
 //  glGenTextures(1, &pimpl->texture);
 }
@@ -329,7 +335,7 @@ void Visual::draw() {
 //  glBindTexture(GL_TEXTURE_1D_ARRAY, pimpl->texture);
   //glUniform1i(glGetUniformLocation(pimpl->program, "sampler"), 0);
 
-  glDrawArrays(GL_TRIANGLES, 0, 6*6+12*6);
+  glDrawArrays(GL_TRIANGLES, 0, 6*2*3+12*4*3);
 
 }
 
