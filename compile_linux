@@ -1,2 +1,2 @@
 #!/bin/bash
-g++ src/*.cc -g -std=c++11 -fpermissive `pkg-config --cflags --libs glfw3 gl`
+g++ src/*.cc -g -std=c++11 -fpermissive `libpng-config --ldflags` `pkg-config --cflags --libs glfw3 gl`
