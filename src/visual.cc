@@ -18,6 +18,7 @@
 #include <boost/geometry/algorithms/distance.hpp>
 #include <boost/geometry/geometries/polygon.hpp>
 #include <boost/geometry/geometry.hpp>
+#include <glm/glm.hpp>
 
 #include "visual.h"
 #include "visual.vs.h"
@@ -28,6 +29,7 @@ using std::max;
 class VisualImpl {
 
   public:
+  void rotate();
   double time;
 
   GLuint program, vbo, vao;
@@ -36,6 +38,7 @@ class VisualImpl {
 
   VisualImpl();
   ~VisualImpl();
+
 
   float proj[16] = {
     1, 0, 0, 0,
@@ -108,6 +111,115 @@ Visual::~Visual() {
   delete pimpl;
 }
 
+void build_spheres_mesh(float* p, float c) {
+
+  float s = sqrt(2.0)*c/(2.0+sqrt(2.0));
+
+  std::vector<glm::vec3> all_tris, squares, slanted_squares, pyramids;
+
+  // Build squares
+
+  glm::vec3 x_axis(1.0, 0.0, 0.0);
+  glm::vec3 y_axis(0.0, 1.0, 0.0);
+  glm::vec3 z_axis(0.0, 0.0, 1.0);
+
+  float senses[2] = {-1.0f, 1.0f };
+
+  glm::vec3 vertex_sq[24];
+
+  for(int s0=0;s0<2;s0++) {
+    for(int s1=0;s1<2;s1++) {
+      for(int s2=0;s2<2;s2++) {
+        vertex_sq[0*8+s0*4+s1*2+s2] = c*senses[s0]*x_axis
+                                    + s*senses[s1]*y_axis
+                                    + s*senses[s2]*z_axis;
+        vertex_sq[1*8+s0*4+s1*2+s2] = s*senses[s0]*x_axis
+                                    + c*senses[s1]*y_axis
+                                    + s*senses[s2]*z_axis;
+        vertex_sq[2*8+s0*4+s1*2+s2] = s*senses[s0]*x_axis
+                                    + s*senses[s1]*y_axis
+                                    + c*senses[s2]*z_axis;
+      }
+    }
+  }
+
+  glm::vec3 vertex_pyr[8];
+
+  float pyr_d = 0.5*(s+c);
+
+  for(int s0=0;s0<2;s0++) {
+    for(int s1=0;s1<2;s1++) {
+      for(int s2=0;s2<2;s2++) {
+        vertex_pyr[4*s0+2*s1+s2] = pyr_d*glm::vec3(senses[s0],senses[s1],senses[s2]);
+      }
+    }
+  }
+
+  std::vector<glm::vec3> square_faces;
+  for(int a=0;a<3;a++) {
+    for(int s0=0;s0<2;s0++) {
+      // TODO - adjust winding
+      int ao[12] =   { 0, 0
+                     , 0, 1
+                     , 1, 0
+                     , 0, 1
+                     , 1, 1
+                     , 1, 0
+                     };
+      int ao1 = (a+1)%3;
+      int ao2 = (a+2)%3;
+      for(int i=0;i<6;i++) {
+        int c[3];
+        c[a] = s0;
+        c[ao1] = ao[i*2+0];
+        c[ao2] = ao[i*2+1];
+        square_faces.push_back(vertex_sq[a*8+c[0]*4+c[1]*2+c[2]*1]);
+      }
+    }
+  }
+
+  std::vector<glm::vec3> hexagons;
+  for(int a0=0;a0<3;a0++) {
+    for(int a1=0;a1<a0;a1++) {
+      for(int s0=0;s0<2;s0++) {
+        for(int s1=0;s1<2;s1++) {
+//          hexagons.push_back(vertex_sq[a1*8+s1*4+s0*2+0*1]);
+//          hexagons.push_back(vertex_sq[a1*8+s1*4+s0*2+1*1]);
+//          hexagons.push_back(vertex_sq[a0*8+s0*4+s1*2+1*1]);
+
+          int a2;
+          if (a0 == 1 && a1 == 0) a2 = 2;
+          if (a0 == 2 && a1 == 0) a2 = 1;
+          if (a0 == 2 && a1 == 1) a2 = 0;
+          int coords[3];
+          coords[a0] = s0;
+          coords[a1] = s1;
+          coords[a2] = 1;
+          hexagons.push_back(vertex_pyr[4*coords[0]+2*coords[1]+1*coords[2]]);
+          hexagons.push_back(vertex_sq[a1*8+coords[0]*4+coords[1]*2+coords[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords[0]*4+coords[1]*2+coords[2]*1]);
+          coords[a0] = 1-s0;
+          coords[a1] = 1-s1;
+          coords[a2] = 0;
+          hexagons.push_back(vertex_pyr[4*coords[0]+2*coords[1]+1*coords[2]]);
+          hexagons.push_back(vertex_sq[a1*8+coords[0]*4+coords[1]*2+coords[2]*1]);
+          hexagons.push_back(vertex_sq[a0*8+coords[0]*4+coords[1]*2+coords[2]*1]);
+        }
+      }
+    }
+  }
+
+
+  all_tris.insert(all_tris.end(), square_faces.begin(), square_faces.end());
+  all_tris.insert(all_tris.end(), hexagons.begin(), hexagons.end());
+
+  for(int i=0;i<all_tris.size();i++) {
+    p[i*3+0] = all_tris[i][0];
+    p[i*3+1] = all_tris[i][1];
+    p[i*3+2] = all_tris[i][2];
+  }
+}
+
 void Visual::initialize() {
 
   pimpl->program = compile_shader_program(
@@ -120,18 +232,61 @@ void Visual::initialize() {
   glGenVertexArrays(1, &pimpl->vao);
   glBindVertexArray(pimpl->vao);
 
-  static const GLfloat test_data[] = {
-       -1.0f,  1.0f, 0.0f,
-       -1.0f, -1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
-       -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f, 0.0f
-  };
+  float c = 0.5, s = 0.1;
+
+  static GLfloat test_data[6*2*3+12*2*3+8*3*3];
+
+  build_spheres_mesh(test_data, c);
+//    = {
+//       // Front back
+//       -s,  s, -c,
+//       -s, -s, -c,
+//        s, -s, -c,
+//        s, -s, -c,
+//       -s,  s, -c,
+//        s,  s, -c,
+//
+//       -s,  s,  c,
+//        s, -s,  c,
+//       -s, -s,  c,
+//        s, -s,  c,
+//        s,  s,  c,
+//       -s,  s,  c,
+//
+//       -c, -s,  s,
+//       -c, -s, -s,
+//       -c,  s, -s,
+//       -c,  s, -s,
+//       -c, -s,  s,
+//       -c,  s,  s,
+//
+//        c, -s,  s,
+//        c,  s, -s,
+//        c, -s, -s,
+//        c,  s, -s,
+//        c,  s,  s,
+//        c, -s,  s,
+//
+//        s, -c, -s,
+//       -s, -c, -s,
+//       -s, -c,  s,
+//       -s, -c,  s,
+//        s, -c, -s,
+//        s, -c,  s,
+//
+//        s, c, -s,
+//       -s, c,  s,
+//       -s, c, -s,
+//       -s, c,  s,
+//        s, c,  s,
+//        s, c, -s,
+//
+//        s
+//  };
 
   glGenBuffers(1, &pimpl->vbo);
   glBindBuffer(GL_ARRAY_BUFFER, pimpl->vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(test_data), test_data, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float)*(3*6*6+12*6*3), test_data, GL_STATIC_DRAW);
 
 //  glGenTextures(1, &pimpl->texture);
 }
@@ -151,8 +306,8 @@ void Visual::draw() {
 
   float mv[16] = {
     1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
+    0, 0.866, -0.5, 0,
+    0, 0.5, 0.866, 0,
     0, 0, 0, 1
   };
 
@@ -172,15 +327,23 @@ void Visual::draw() {
 
 //  glActiveTexture(GL_TEXTURE0);
 //  glBindTexture(GL_TEXTURE_1D_ARRAY, pimpl->texture);
-  glUniform1i(glGetUniformLocation(pimpl->program, "sampler"), 0);
+  //glUniform1i(glGetUniformLocation(pimpl->program, "sampler"), 0);
 
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDrawArrays(GL_TRIANGLES, 0, 6*6+12*6);
 
 }
 
-void Visual::time_advance(double t) { pimpl->time += t; }
+void VisualImpl::rotate() {
+  float theta = time*M_PI/2.0;
+  proj[0] = cos(theta);
+  proj[2] = -sin(theta);
+  proj[8] = sin(theta);
+  proj[10] = cos(theta);
+}
 
-void Visual::time(double t) { pimpl->time = t; }
+void Visual::time_advance(double t) { pimpl->time += t; pimpl->rotate(); }
+
+void Visual::time(double t) { pimpl->time = t; pimpl->rotate(); }
 
 VisualImpl::VisualImpl() :
   time(0)

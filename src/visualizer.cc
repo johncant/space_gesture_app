@@ -63,6 +63,7 @@ void Visualizer::mainloop() {
     glfwMakeContextCurrent(pimpl->window);
     double t = glfwGetTime();
     visual->time(t);
+    std::cout << t << std::endl;
     draw();
 
 //    glfwWaitEvents();
@@ -84,7 +85,7 @@ void Visualizer::initialize() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  pimpl->window = glfwCreateWindow(890, 156, "foo", NULL, NULL);
+  pimpl->window = glfwCreateWindow(400, 400, "foo", NULL, NULL);
   VisualizerImpl::window_visualizer_map.insert(std::make_pair(pimpl->window, this));
 
   glfwSetWindowSizeCallback(pimpl->window, resize_callback);
@@ -96,7 +97,7 @@ void Visualizer::initialize() {
   glfwMakeContextCurrent(pimpl->window);
   visual->initialize();
 
-  configure(890, 156);
+  configure(400, 400);
 
   glfwSetErrorCallback(NULL);
 }
